@@ -712,6 +712,58 @@ sub selectall_arrayref {
   return $ret;
 }
 
+
+sub get_query_results {
+  my ($self, %args) = @_;
+
+  my $project_id = $args{project_id} // $self->{project_id};
+  my $job_id = $args{jobId} // $self->{jobId};
+
+  unless ($project_id) {
+    warn "no project\n";
+    return 0;
+  }
+
+  unless ($job_id) {
+    warn "no job_id\n";
+    return 0;
+  }
+
+  # option
+  my $query_string;
+
+  $query_string->{startIndex} = $args{startIndex} if defined $args{startIndex};
+  $query_string->{maxResults} = $args{maxResults} if defined $args{maxResults};
+  $query_string->{timeoutMs} = $args{timeoutMs} if defined $args{timeoutMs};
+  $query_string->{pageToken} = $args{pageToken} if defined $args{pageToken};
+
+  if ($query_string->{pageToken} and $query_string->{startIndex}) {
+    warn "both 'pageToken' and 'startIndex' are set\n";
+    return 0;
+  }
+
+  my $response = $self->request(
+    resource => 'jobs',
+    method => 'getQueryResults',
+    job_id => $job_id,
+    project_id => $project_id,
+    query_string => $query_string,
+  );
+
+  $self->{response} = $response;
+
+  my $ret = [];
+  foreach my $rows (@{$response->{rows}}) {
+    my $row = [];
+    foreach my $field (@{$rows->{f}}) {
+      push @$row, $field->{v};
+    }
+    push @$ret, $row;
+  }
+
+  return $ret;
+}
+
 sub is_exists_dataset {
   my ($self, %args) = @_;
 
@@ -887,11 +939,13 @@ sub extract {
 sub get_nextPageToken {
   my $self = shift;
 
-  if (defined $self->{response}{nextPageToken}) {
-    return $self->{response}{nextPageToken};
-  } else {
-    return undef;
-  }
+  return $self->{response}{pageToken};
+}
+
+sub get_lastJobId {
+  my $self = shift;
+
+  return $self->{response}{jobId};
 }
 
 1;
