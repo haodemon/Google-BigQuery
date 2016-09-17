@@ -2,6 +2,12 @@ Revision history for Perl extension Google-BigQuery
 
 {{$NEXT}}
 
+1.03 2016-09-11T10:10:10Z
+
+	- Added getQueryResults call
+	- Convenient error checks/handler is added
+	- Added 'jobReference' into get_lastJobId call
+
 1.02 2015-07-30T05:03:02Z
 
     - Fix typo viersion number.

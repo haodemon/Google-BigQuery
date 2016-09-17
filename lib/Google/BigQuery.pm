@@ -3,7 +3,7 @@ use 5.010001;
 use strict;
 use warnings;
 
-our $VERSION = "1.02";
+our $VERSION = "1.03";
 
 use Class::Load qw(load_class);
 use Crypt::OpenSSL::PKCS12;
@@ -27,7 +27,7 @@ sub create {
 sub new {
   my ($class, %args) = @_;
 
-  die "undefined client_eamil" if !defined $args{client_email};
+  die "undefined client_email" if !defined $args{client_email};
   die "undefined private_key_file" if !defined $args{private_key_file};
   die "not found private_key_file" if !-f $args{private_key_file};
 
@@ -107,16 +107,17 @@ sub use_dataset {
 
 sub create_dataset {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
 
@@ -141,26 +142,24 @@ sub create_dataset {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return 0;
-  } else {
-    return 1;
-  }
+  return 0 if $response->{error};
+
+  return 1;
 }
 
 sub drop_dataset {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
 
@@ -179,22 +178,20 @@ sub drop_dataset {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return 0;
-  } else {
-    return 1;
-  }
+  return 0 if $response->{error};
+
+  return 1;
 }
 
 sub show_datasets {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
 
   unless ($project_id) {
-    warn "no project\n";
-    return undef;
+    $self->_set_error("no project");
+    return ();
   }
 
   # option
@@ -213,10 +210,7 @@ sub show_datasets {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return undef;
-  }
+  return () if $response->{error};
 
   my @ret = ();
   foreach my $dataset (@{$response->{datasets}}) {
@@ -228,17 +222,18 @@ sub show_datasets {
 
 sub desc_dataset {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
 
   unless ($project_id) {
-    warn "no project\n";
-    return 0;
+    $self->_set_error("no project");
+    return {};
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
-    return 0;
+    $self->_set_error("no dataset");
+    return {};
   }
 
   my $response = $self->request(
@@ -249,31 +244,29 @@ sub desc_dataset {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return undef;
-  } else {
-    return $response;
-  }
+  return {} if $response->{error};
+
+  return $response;
 }
 
 sub create_table {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
   my $table_id = $args{table_id};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
   unless ($table_id) {
-    warn "no table\n";
+    $self->_set_error("no table");
     return 0;
   }
 
@@ -302,34 +295,34 @@ sub create_table {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
+  return 0 if $response->{error};
+
+  if (defined $args{schema} && !defined $response->{schema}) {
+    $self->_set_error("no create schema");
     return 0;
-  } elsif (defined $args{schema} && !defined $response->{schema}) {
-    warn "no create schema";
-    return 0;
-  } else {
-    return 1;
   }
+
+  return 1;
 }
 
 sub drop_table {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
   my $table_id = $args{table_id};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
   unless ($table_id) {
-    warn "no table\n";
+    $self->_set_error("no table");
     return 0;
   }
 
@@ -342,27 +335,25 @@ sub drop_table {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return 0;
-  } else {
-    return 1;
-  }
+  return 0 if $response->{error};
+
+  return 1;
 }
 
 sub show_tables {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
 
   unless ($project_id) {
-    warn "no project\n";
-    return undef;
+    $self->_set_error("no project");
+    return ();
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
-    return undef;
+    $self->_set_error("no dataset");
+    return ();
   }
 
   # option
@@ -379,10 +370,7 @@ sub show_tables {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return undef;
-  }
+  return () if $response->{error};
 
   my @ret = ();
   foreach my $table (@{$response->{tables}}) {
@@ -394,22 +382,23 @@ sub show_tables {
 
 sub desc_table {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
   my $table_id = $args{table_id};
 
   unless ($project_id) {
-    warn "no project\n";
-    return 0;
+    $self->_set_error("no project");
+    return {};
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
-    return 0;
+    $self->_set_error("no dataset");
+    return {};
   }
   unless ($table_id) {
-    warn "no table\n";
-    return 0;
+    $self->_set_error("no table");
+    return {};
   }
 
   my $response = $self->request(
@@ -421,16 +410,14 @@ sub desc_table {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return undef;
-  } else {
-    return $response;
-  }
+  return {} if $response->{error};
+
+  return $response;
 }
 
 sub load {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
@@ -439,19 +426,19 @@ sub load {
   my $async = $args{async} // 0;
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
   unless ($table_id) {
-    warn "no table\n";
+    $self->_set_error("no table");
     return 0;
   }
   unless ($data) {
-    warn "no data\n";
+    $self->_set_error("no data");
     return 0;
   }
 
@@ -525,28 +512,26 @@ sub load {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return 0;
-  } elsif ($async) {
-    # return job_id if async is true.
-    return $response->{jobReference}{jobId};
-  } elsif ($response->{status}{state} eq 'DONE') {
+
+  return 0 if (defined $response->{error});
+  return $response->{jobReference}{jobId} if $async;
+
+
+  if ($response->{status}{state} eq 'DONE') {
     if (defined $response->{status}{errors}) {
-      foreach my $error (@{$response->{status}{errors}}) {
-        warn encode_json($error), "\n";
-      }
+      # saving only *last* error
+      $self->_set_error($response->{status}{errors}->[0]);
       return 0;
-    } else {
-      return 1;
     }
-  } else {
-    return 0;
+    return 1;
   }
+
+  return 0;
 }
 
 sub insert {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
@@ -554,19 +539,19 @@ sub insert {
   my $values = $args{values};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
   unless ($table_id) {
-    warn "no table\n";
+    $self->_set_error("no table");
     return 0;
   }
   unless ($values) {
-    warn "no values\n";
+    $self->_set_error("no values");
     return 0;
   }
 
@@ -587,33 +572,32 @@ sub insert {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
+  return 0 if $response->{error};
+
+  if (defined $response->{insertErrors}) {
+    $self->_set_error($response->{insertErrors}->[0]);
     return 0;
-  } elsif (defined $response->{insertErrors}) {
-    foreach my $error (@{$response->{insertErrors}}) {
-      warn encode_json($error), "\n";
-    }
-    return 0;
-  } else {
+  }
+  else {
     return 1;
   }
 }
 
 sub selectrow_array {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $query = $args{query};
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
 
   unless ($query) {
-    warn "no query\n";
-    return 0;
+    $self->_set_error("no query");
+    return ();
   }
   unless ($project_id) {
-    warn "no project\n";
-    return 0;
+    $self->_set_error("no project");
+    return ();
   }
 
   my $content = {
@@ -641,10 +625,7 @@ sub selectrow_array {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return 0;
-  }
+  return () if $response->{error};
 
   my @ret = ();
   foreach my $field (@{$response->{rows}[0]{f}}) {
@@ -656,18 +637,19 @@ sub selectrow_array {
 
 sub selectall_arrayref {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $query = $args{query};
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
 
   unless ($query) {
-    warn "no query\n";
-    return 0;
+    $self->_set_error("no query");
+    return [];
   }
   unless ($project_id) {
-    warn "no project\n";
-    return 0;
+    $self->_set_error("no project");
+    return [];
   }
 
   my $content = {
@@ -695,10 +677,7 @@ sub selectall_arrayref {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return 0;
-  }
+  return [] if $response->{error};
 
   my $ret = [];
   foreach my $rows (@{$response->{rows}}) {
@@ -715,18 +694,19 @@ sub selectall_arrayref {
 
 sub get_query_results {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $job_id = $args{jobId} // $self->{jobId};
 
   unless ($project_id) {
-    warn "no project\n";
-    return 0;
+    $self->_set_error("no project");
+    return [];
   }
 
   unless ($job_id) {
-    warn "no job_id\n";
-    return 0;
+    $self->_set_error("no job_id");
+    return [];
   }
 
   # option
@@ -738,8 +718,8 @@ sub get_query_results {
   $query_string->{pageToken} = $args{pageToken} if defined $args{pageToken};
 
   if ($query_string->{pageToken} and $query_string->{startIndex}) {
-    warn "both 'pageToken' and 'startIndex' are set\n";
-    return 0;
+    $self->_set_error("both pageToken and startIndex are not allowed");
+    return [];
   }
 
   my $response = $self->request(
@@ -751,6 +731,8 @@ sub get_query_results {
   );
 
   $self->{response} = $response;
+
+  return [] if defined $response->{error};
 
   my $ret = [];
   foreach my $rows (@{$response->{rows}}) {
@@ -766,16 +748,18 @@ sub get_query_results {
 
 sub is_exists_dataset {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
+
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
 
@@ -797,21 +781,22 @@ sub is_exists_dataset {
 
 sub is_exists_table {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
   my $table_id = $args{table_id};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
   unless ($table_id) {
-    warn "no table\n";
+    $self->_set_error("no table");
     return 0;
   }
 
@@ -834,6 +819,7 @@ sub is_exists_table {
 
 sub extract {
   my ($self, %args) = @_;
+  $self->_cleanup_previous_errors();
 
   my $project_id = $args{project_id} // $self->{project_id};
   my $dataset_id = $args{dataset_id} // $self->{dataset_id};
@@ -841,19 +827,19 @@ sub extract {
   my $data = $args{data};
 
   unless ($project_id) {
-    warn "no project\n";
+    $self->_set_error("no project");
     return 0;
   }
   unless ($dataset_id) {
-    warn "no dataset\n";
+    $self->_set_error("no dataset");
     return 0;
   }
   unless ($table_id) {
-    warn "no table\n";
+    $self->_set_error("no table");
     return 0;
   }
   unless ($data) {
-    warn "no data\n";
+    $self->_set_error("no data");
     return 0;
   }
 
@@ -919,21 +905,18 @@ sub extract {
   );
   $self->{response} = $response;
 
-  if (defined $response->{error}) {
-    warn $response->{error}{message};
-    return 0;
-  } elsif ($response->{status}{state} eq 'DONE') {
+  return 0 if (defined $response->{error});
+
+  if ($response->{status}{state} eq 'DONE') {
     if (defined $response->{status}{errors}) {
-      foreach my $error (@{$response->{status}{errors}}) {
-        warn encode_json($error), "\n";
-      }
+      # saving only *last* error
+      $self->_set_error($response->{status}{errors}->[0]);
       return 0;
-    } else {
-      return 1;
     }
-  } else {
-    return 0;
+    return 1;
   }
+
+  return 0;
 }
 
 sub get_nextPageToken {
@@ -945,9 +928,35 @@ sub get_nextPageToken {
 sub get_lastJobId {
   my $self = shift;
 
-  return $self->{response}{jobId};
+  return $self->{response}{jobReference}{jobId};
 }
 
+sub is_error {
+  my $self = shift;
+
+  return 1 if $self->{error};
+  return 1 if $self->{response} && $self->{response}{error};
+
+  return 0;
+}
+
+sub _set_error {
+  my ($self, $error) = @_;
+
+  $self->{error} = $error;
+}
+
+sub _cleanup_previous_errors {
+  my $self = shift;
+
+  delete $self->{error} if $self->{error};
+}
+
+sub error_message {
+  my $self = shift;
+
+  return $self->{error} // $self->{response}{error}{message} // '';
+}
 1;
 __END__
 

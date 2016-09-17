@@ -34,6 +34,10 @@ Google::BigQuery - Google BigQuery Client Library for Perl
       ]
     );
 
+	if ($bq->is_error) {
+		# $bq->error_message  # string with error message
+	}
+
     # load
     my $load_file = "load_file.tsv";
     open my $out, ">", $load_file or die;
@@ -63,15 +67,28 @@ Google::BigQuery - Google BigQuery Client Library for Perl
       values => $values,
     );
 
+	if ($bq->is_error) {
+		# $bq->error_message  # string with error message
+	}
+
     # The first time a streaming insert occurs, the streamed data is inaccessible for a warm-up period of up to two minutes.
     sleep(120);
 
     # selectrow_array
     my ($count) = $bq->selectrow_array(query => "SELECT COUNT(*) FROM $table_id");
-    print $count, "\n"; # 103
+	if ($bq->is_error) {
+		# $bq->error_message  # string with error message
+	}
+	else {
+	    print $count, "\n"; # 103
+	}
 
     # selectall_arrayref
     my $aref = $bq->selectall_arrayref(query => "SELECT * FROM $table_id ORDER BY id");
+	if ($bq->is_error) {
+		# $bq->error_message  # string with error message
+	}
+
     foreach my $ref (@$aref) {
       print join("\t", @$ref), "\n";
     }
@@ -84,7 +101,7 @@ Google::BigQuery - Google BigQuery Client Library for Perl
 
 # DESCRIPTION
 
-Google::BigQuery - Google BigQuery Client Library for Perl
+Google::BigQuery - Google BigQuery Client Library for Perl (with convenient errors check)
 
 # INSTALL
 
@@ -392,6 +409,28 @@ See details of option at https://cloud.google.com/bigquery/docs/reference/v2/.
             description => 'Update!',
           },
         );
+
+- is\_error
+
+    Returns boolean if errors very found in answer body, e.g.:
+
+        my $aref = $bq->selectrow_arrayref(
+          project_id => $project_id,
+          query => "bad_query,		      # bad query won't execute
+          dataset_id => $dataset_id,
+          maxResults => $maxResults,
+          timeoutMs => $timeoutMs,
+        );
+
+		if ($bq->is_error) {
+			# error is present, $aref contains empty arrayref now
+			print "Unable to make query: " . $bq->error_message() . "\n";
+		}
+
+- error_message
+
+	Returns a string with last error message if exists
+
 
 # LICENSE
 
